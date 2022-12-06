@@ -8,7 +8,7 @@ from argparse import RawTextHelpFormatter
 from pyhunter import PyHunter
 from bs4 import BeautifulSoup
 from itertools import cycle
-import time, json, math, ssl, argparse, re, sys, os, codecs, hashlib, hmac, base64, urllib, requests, cloudscraper, getpass, random, unidecode, httpimport, yaml
+import time, json, math, ssl, argparse, re, sys, os, codecs, hashlib, hmac, base64, urllib, requests, cloudscraper, getpass, random, unidecode, httpimport, yaml, subprocess
 
 with httpimport.remote_repo('https://raw.githubusercontent.com/IntelligenceX/SDK/master/Python/'):
 	from intelxapi import intelx
@@ -50,7 +50,12 @@ parser.add_argument('-proxyfile' , dest='proxylist', default='None', required=Fa
 parser.add_argument('-m', dest='mangleMode', required=False, default=0, help="Mangle Mode (use '-mo' to list mangle options). Only works with an output file (-o)")
 parser.add_argument('-mo', dest='mangleOptions', required=False, default=False, help="List Mangle Mode Options", action="store_true")
 parser.add_argument('-yaml', dest='useyamlfile', required=False, default='', help="Use YAML input file with options")
+parser.add_argument('-sl', dest='statlikely', required=False, default=False, help="Use statistically likely repositiory to validate users with options", action='store_true')
 args = parser.parse_args()
+
+if args.statlikely and not args.hunterIO:
+	print("[!]  HunterIO must be used for -statlikely")
+	exit()
 
 # Assign user arguments to variables we can use
 company = str(args.company) # String
@@ -77,6 +82,7 @@ phonebookCZ = args.phonebookCZ # Bool
 phonebookTargetDomain = str(args.phonebookTargetDomain) # String
 intelAPIKey = str(args.intelAPIKey) # String
 useyamlfile = str(args.useyamlfile) # Bool
+statlikely = str(args.statlikely) #Bool
 
 # Colors for terminal output because Waffles likes pretty things
 class bcolors:
@@ -443,8 +449,11 @@ def linkedInGen():
 				else:
 					linkedInNamesList.append(str(full_name))
 		time.sleep(sleep)
-  
-def hunterPull(hunterApiKey, hunterDomain, hunterNamesList):
+ 
+
+
+# Added BOOL to Argument
+def hunterPull(hunterApiKey, hunterDomain, hunterNamesList, StatBool):
 	hunter = PyHunter(hunterApiKey)
 	hunterAccountInformation = hunter.account_information()
 	hunterAvailableSearches = int(hunterAccountInformation["requests"]["searches"]["available"])
@@ -467,6 +476,8 @@ def hunterPull(hunterApiKey, hunterDomain, hunterNamesList):
 	if domainHunterPattern == None:
 		domainHunterPattern = 'No pattern identified in Hunter.IO'
 	print(bcolors.OKGREEN + '\n[+] Email Pattern Identified: ' + str(domainHunterPattern) + '\n' + bcolors.ENDLINE)
+	if StatBool:
+		StatLikelyDownload(str(domainHunterPattern), str(hunterDomain))
 
 	hunterDomainSearchJSONCreate = json.dumps(domainSearchHunterJson)
 	hunterDomainSearchJSONObject = json.loads(hunterDomainSearchJSONCreate)
@@ -481,6 +492,49 @@ def hunterPull(hunterApiKey, hunterDomain, hunterNamesList):
 		else:
 			finalName = firstName.capitalize() + " " + lastName.capitalize()
 			hunterNamesList.append(str(finalName))
+
+# Function For Retrieving Statistically Likely list and Add Domain to Each User (Called With -sl)
+def StatLikelyDownload(schema, domain):
+	domain = str(domain)
+	schema = str(schema)
+
+	if schema == "{f}.{last}":
+		# Stat Likely Does Not Contain This File - I uploaded on my Github a slightly modified list to reflect the correct Schema
+		urllib.request.urlretrieve("https://github.com/AchocolatechipPancake/statistically-likely-usernames/raw/master/j.smith.txt", "j.smith.txt")
+		print(bcolors.NONERED + '\n[!] Saved j.smith.txt \n' + bcolors.ENDLINE)
+		subprocess.call([f"sed -i s/$/@{domain}/ j.smith.txt"], shell=True)
+		return
+
+	elif schema == "{first}.{last}":
+		urllib.request.urlretrieve("https://github.com/insidetrust/statistically-likely-usernames/raw/master/john.smith.txt", "john.smith.txt")
+		print(bcolors.NONERED + '\n[!] Saved john.smith.txt \n' + bcolors.ENDLINE)
+		subprocess.call([f"sed -i s/$/@{domain}/ john.smith.txt"], shell=True)
+		return
+
+	elif schema == "{first}{l}":
+		urllib.request.urlretrieve("https://github.com/insidetrust/statistically-likely-usernames/raw/master/johns.txt", "johns.txt")
+		print(bcolors.NONERED + '\n[!] Saved johns.txt \n' + bcolors.ENDLINE)
+		subprocess.call([f"sed -i s/$/@{domain}/ johns.txt"], shell=True)
+		return
+
+	elif schema == "{f}{last}":
+		urllib.request.urlretrieve("https://github.com/insidetrust/statistically-likely-usernames/raw/master/jsmith.txt", "jsmith.txt")
+		print(bcolors.NONERED + '\n[!] Saved jsmith.txt \n' + bcolors.ENDLINE)
+		subprocess.call([f"sed -i s/$/@{domain}/ jsmith.txt"], shell=True)
+		return
+
+	elif schema == "{first}":
+		urllib.request.urlretrieve("https://github.com/insidetrust/statistically-likely-usernames/raw/master/john.txt", "john.txt")
+		print(bcolors.NONERED + '\n[!] Saved john.txt \n' + bcolors.ENDLINE)
+		subprocess.call([f"sed -i s/$/@{domain}/ john.txt"], shell=True)
+		return
+
+	elif schema == "{last}":
+		urllib.request.urlretrieve("https://github.com/insidetrust/statistically-likely-usernames/raw/master/smith.txt", "smith.txt")
+		print(bcolors.NONERED + '\n[!] Saved smith.txt \n' + bcolors.ENDLINE)
+		subprocess.call([f"sed -i s/$/@{domain}/ smith.txt"], shell=True)
+		return
+#End of Stat Likely Function
 
 # Special thanks to bigb0sss for the USStaff function
 def usStaffMama(company):
@@ -661,14 +715,28 @@ def main_generator():
 			print(bcolors.NONERED + "[!] Errors Pulling ZoomInfo Names" + bcolors.ENDLINE)
 			pass
 
+	# Modified - To test for Stat Likely
 	if hunterIO:
-		try:
-			print(bcolors.OKGREEN + '[+] Pulling emails from Hunter.io\n' + bcolors.ENDLINE)
-			hunterPull(hunterApiKey, hunterDomain, hunterNamesList)
-			print(bcolors.OKGREEN + '[+] Pulled ' + str(len(hunterNamesList)) + ' Hunter.io Employees\n' + bcolors.ENDLINE)
-		except:
-			print(bcolors.NONERED + "[!] Errors Pulling Hunter.io Emails" + bcolors.ENDLINE)
-			pass
+		# I have no idea why this gave me the hardest time but I could only resolve with:  'if str(var) == "True"' and not "if BOOL:"
+		if str(statlikely) == "True":
+			try:
+				print(bcolors.OKGREEN + '[+] Pulling emails from Hunter.io\n' + bcolors.ENDLINE)
+				print(bcolors.OKGREEN + '[+] Creating Spray List with Statistically Likely\n' + bcolors.ENDLINE)
+				hunterPull(hunterApiKey, hunterDomain, hunterNamesList, True)
+				print(bcolors.OKGREEN + '[+] Pulled ' + str(len(hunterNamesList)) + ' Hunter.io Employees\n' + bcolors.ENDLINE)
+			except:
+				print(bcolors.NONERED + "[!] Errors Pulling Hunter.io Emails / Stat Likely" + bcolors.ENDLINE)
+				pass
+		else:
+			try:
+				print(bcolors.OKGREEN + '[+] Pulling emails from Hunter.io\n' + bcolors.ENDLINE)
+				hunterPull(hunterApiKey, hunterDomain, hunterNamesList, False)
+				print(bcolors.OKGREEN + '[+] Pulled ' + str(len(hunterNamesList)) + ' Hunter.io Employees\n' + bcolors.ENDLINE)
+			except:
+				print(bcolors.NONERED + "[!] Errors Pulling Hunter.io Emails" + bcolors.ENDLINE)
+				pass
+
+	#Modifications End
 
 	if usstaff:
 		try:
