@@ -67,6 +67,7 @@ options:
   -m MANGLEMODE         Mangle Mode (use '-mo' to list mangle options). Only works with an output file (-o)
   -mo                   List Mangle Mode Options
   -yaml USEYAMLFILE     Use YAML input file with options
+  -sl                   Download Statistically Likely Username List for Password Spraying
 
 ```
 ### Examples
